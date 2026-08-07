@@ -1,0 +1,682 @@
+{
+  "name": "AI Novel Generate",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        -16
+      ],
+      "id": "3d57d442-7b98-426a-9c3c-65d71ca388f3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1352644583,
+          "mode": "list",
+          "cachedResultName": "Characters",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=1352644583"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -320,
+        -16
+      ],
+      "id": "196d7e3d-7dee-4ae5-91a3-5dee8f642a6a",
+      "name": "Characters",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 764554425,
+          "mode": "list",
+          "cachedResultName": "Locations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=764554425"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -96,
+        -16
+      ],
+      "id": "7d5da594-581e-41c0-9400-2b24b150691c",
+      "name": "Locations",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const storyInfo = $('Story_Info').all().map(item => item.json);\nconst characters = $('Characters').all().map(item => item.json);\nconst locations = $('Locations').all().map(item => item.json);\n\n// Fungsi penanganan jika sheet kosong\nconst processEmptySheet = (nodeName) => {\n  const rawData = $(nodeName).all();\n  if (rawData.length === 1 && Object.keys(rawData[0].json).length === 0) {\n    return [];\n  }\n  return rawData.map(item => item.json);\n};\n\nconst chapters = processEmptySheet('Chapters');\nconst outlineChapters = processEmptySheet('Outline_Chapter');\n\n// Filter bab yang berstatus 'Planned' dan urutkan berdasarkan Chapter Number dari yang terkecil\nconst plannedChapters = outlineChapters\n  .filter(ch => ch.Status === 'Planned')\n  .sort((a, b) => Number(a['Chapter Number']) - Number(b['Chapter Number']));\n\nconst currentChapterToWrite = plannedChapters.length > 0 ? plannedChapters[0] : null;\n\n// Cari data bab sebelumnya dari array 'chapters' berdasarkan Chapter Number - 1\nlet previousChapterData = null;\n\nif (currentChapterToWrite) {\n  const currentNum = Number(currentChapterToWrite['Chapter Number']);\n  if (currentNum > 1) {\n    const prevNum = currentNum - 1;\n    previousChapterData = chapters.find(\n      ch => Number(ch['Chapter Number']) === prevNum\n    ) || null;\n  }\n}\n\nreturn [\n  {\n    json: {\n      story_info: storyInfo,\n      characters: characters,\n      locations: locations,\n      chapters: chapters,\n      outline_chapter: outlineChapters,\n      current_chapter: currentChapterToWrite,\n      previous_chapter: previousChapterData\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "46956780-01f4-485d-8f97-42536277cf7b",
+      "name": "Merge & Logic"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "==Write a complete, full-length novel chapter based on the provided context below.\n\n=== PREVIOUS CHAPTER CONTEXT (FOR STORY CONTINUITY) ===\nHere is the manuscript/event from the chapter right before this one. Connect the opening scene of the current chapter smoothly from this last scene of the previous chapter:\n{{ $('Get Google Doc').item.json.text ? $('Get Google Doc').item.json.text : \"This is Chapter 1, there is no previous chapter. Start the story from the beginning.\" }}\n\nCRITICAL FORMATTING INSTRUCTIONS:\n1. OUTPUT LANGUAGE: Write the ENTIRE story prose strictly in INDONESIAN (Bahasa Indonesia).\n2. PARAGRAPH LENGTH: Make paragraphs SHORT and easy to read (strictly 2 to 4 sentences per paragraph).\n3. NEW PARAGRAPH FOR DIALOGUE: Start a NEW paragraph every time a character speaks or performs a distinct action.\n4. TOTAL LENGTH: MUST be between 1,000 and 1,500 words.\n5. NO MARKDOWN: Absolutely NO Markdown formatting anywhere (no asterisks *, no hashes #, no bolding, no headings).\n6. NO TITLES: Do NOT include chapter titles or headers at the top. Begin directly with the story prose.\n\n=== CURRENT CHAPTER OUTLINE ===\n- Chapter Number: {{ $('Merge & Logic').item.json.current_chapter['Chapter Number'] }}\n- Chapter Title: {{ $('Merge & Logic').item.json.current_chapter['Chapter Title'] }}\n- Plot Summary: {{ $('Merge & Logic').item.json.current_chapter['Summary / Plot Points'] }}\n- Featured Characters: {{ $('Merge & Logic').item.json.current_chapter['Featured Characters'] }}\n- Primary Location: {{ $('Merge & Logic').item.json.current_chapter['Location'] }}\n- Goal / Outcome: {{ $('Merge & Logic').item.json.current_chapter['Goal / Outcome'] }}\n\n=== MANDATORY WRITING STYLE ===\n{{ $('Merge & Logic').item.json.story_info[0]['Writing Style'] }}\n\n=== ACTIVE CHARACTERS CONTEXT ===\n{{ JSON.stringify($('Merge & Logic').item.json.characters.filter(c => $('Merge & Logic').item.json.current_chapter['Featured Characters'].includes(c['Character Name']))) }}\n\n=== SCENE LOCATION CONTEXT ===\n{{ JSON.stringify($('Merge & Logic').item.json.locations.filter(l => l['Location Name'] === $('Merge & Logic').item.json.current_chapter['Location'])) }}\n\nPlease begin writing the story prose directly in INDONESIAN, adhering strictly to short 2-4 sentence paragraphs and ensuring a seamless transition from the previous chapter.",
+        "options": {
+          "systemMessage": "=You are an expert web novel author specializing in Urban Fantasy, Cyberpunk, and Cultivation genres.\nYour objective is to write long, detailed, and highly immersive novel chapters with rich world-building, deep inner monologues, realistic dialogue, and vivid scene descriptions.\n\nTarget Output Length:\n- Minimum Word Count: 1,000 words.\n- Target Word Count: 1,200 to 1,500 words.\n\nFormatting and Paragraph Structure Rules (STRICT):\n- PARAGRAPH LENGTH: Break text frequently into short, punchy paragraphs (maximum 2 to 4 sentences per paragraph). Never create long blocks of text.\n- DIALOGUE FORMATTING: Put EVERY speaker's line on its own new line. Never combine dialogue from multiple characters in one paragraph.\n- NO MARKDOWN: Do NOT use Markdown formatting anywhere (no ###, **, *, _, or headers).\n- NO ESCAPE CHARACTERS: Do NOT output raw slash escape symbols like \\n or \\t. Produce clean, standard paragraph line breaks.\n- NO TITLES: Do NOT include chapter titles or headings at the top. Begin directly with the story prose.\n- Output Language: Indonesia.\n\nPrimary Writing Style Guidelines:\n{{ $json.story_info[0]['Writing Style'] }}",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        992,
+        -16
+      ],
+      "id": "97c55ef9-8cbd-48fe-be2c-e2965d22259f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Story_Info",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -528,
+        -16
+      ],
+      "id": "2966b9ba-30d2-4c2e-9a0d-7b75e8581d9f",
+      "name": "Story_Info",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1791103380,
+          "mode": "list",
+          "cachedResultName": "Chapters",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=1791103380"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        128,
+        -16
+      ],
+      "id": "9e5fccee-4b5f-422e-ba70-bf4898699588",
+      "name": "Chapters",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {
+          "maxOutputTokens": 4096
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        192
+      ],
+      "id": "0ad03379-7cd5-4467-a1d2-a28a872d4ecd",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "yedx9ga2XPSt4Ed2",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 321542369,
+          "mode": "list",
+          "cachedResultName": "Outline_Chapter",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=321542369"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        -16
+      ],
+      "id": "6bab5872-e48b-4097-8b27-61564aa2d0ba",
+      "name": "Outline_Chapter",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "folderId": "=14FgJ0Dhrf_d26faVZYxfcuki7dnJMzhk",
+        "title": "=BAB {{ $('Merge & Logic').item.json.current_chapter.row_number - 1 }} - {{ $('Merge & Logic').item.json.current_chapter['Chapter Title'] }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -16
+      ],
+      "id": "fc4241d9-b42d-4c5e-b558-e721cfd14128",
+      "name": "Create a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "iNI9AGeCax38NROA",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('AI Agent').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        -16
+      ],
+      "id": "cae6430a-21d8-4628-a8f2-000d0f1300a8",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "iNI9AGeCax38NROA",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 321542369,
+          "mode": "list",
+          "cachedResultName": "Outline_Chapter",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=321542369"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Merge & Logic').item.json.current_chapter.row_number }}",
+            "Status": "Done"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Chapter Number",
+              "displayName": "Chapter Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Chapter Title",
+              "displayName": "Chapter Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Summary / Plot Points",
+              "displayName": "Summary / Plot Points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Featured Characters",
+              "displayName": "Featured Characters",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Goal / Outcome",
+              "displayName": "Goal / Outcome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2032,
+        -16
+      ],
+      "id": "43025477-db14-4b93-81a9-40b58ddf4c53",
+      "name": "Update Status Chapters",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs",
+          "mode": "list",
+          "cachedResultName": "Novel Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1791103380,
+          "mode": "list",
+          "cachedResultName": "Chapters",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JvFNEw5jsl8A8BnyvlxBUaUelZHXyTcmhqHPW1TbTBs/edit#gid=1791103380"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Chapter Number": "={{ $('Merge & Logic').item.json.current_chapter.row_number - 1 }}",
+            "Chapter Title": "=BAB {{ $('Merge & Logic').item.json.current_chapter.row_number - 1 }} - {{ $('Merge & Logic').item.json.current_chapter['Chapter Title'] }}",
+            "Google Doc URL": "={{ $json.documentId }}",
+            "Created At": "={{ $now.format('yyyy-MM-dd') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Chapter Number",
+              "displayName": "Chapter Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Chapter Title",
+              "displayName": "Chapter Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Google Doc URL",
+              "displayName": "Google Doc URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        -16
+      ],
+      "id": "d9fed294-981b-4fa2-aea0-0cffaf7ce070",
+      "name": "Append Chapters",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "pTgFrIUCPD6mqLun",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.previous_chapter ? $json.previous_chapter['Google Doc URL'] : '' }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -16
+      ],
+      "id": "f6499cf3-afe0-4e17-a618-4b50c433972b",
+      "name": "Get Google Doc",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "iNI9AGeCax38NROA",
+          "name": "Google Docs account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Story_Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Locations": {
+      "main": [
+        [
+          {
+            "node": "Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Characters": {
+      "main": [
+        [
+          {
+            "node": "Locations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Logic": {
+      "main": [
+        [
+          {
+            "node": "Get Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Story_Info": {
+      "main": [
+        [
+          {
+            "node": "Characters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chapters": {
+      "main": [
+        [
+          {
+            "node": "Outline_Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outline_Chapter": {
+      "main": [
+        [
+          {
+            "node": "Merge & Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "Append Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Chapters": {
+      "main": [
+        [
+          {
+            "node": "Update Status Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Google Doc": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "994a4dcb-6c6c-44af-a29b-b5b45e1d923d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f8cdf98bf5a32328411a90ebbcb9b5f462c1fad1f4fe233e3628757841b4196"
+  },
+  "nodeGroups": [],
+  "id": "CKIjECGxN2yzhkN8",
+  "tags": []
+}
